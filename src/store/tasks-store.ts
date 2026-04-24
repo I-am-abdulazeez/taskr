@@ -1,4 +1,6 @@
-import { chunk, computed, batch } from "stunk"
+import { chunk, batch } from "stunk"
+import { asyncChunk, mutation } from "stunk/query"
+import { fetchTasks, createTask, removeTask, toggleTask } from "../api/tasks-api"
 
 export type Task = {
   id: string
@@ -8,56 +10,43 @@ export type Task = {
 
 export type Filter = "all" | "active" | "done"
 
-// Chunks
-export const tasksChunk = chunk<Task[]>([
-  { id: "1", title: "Read Stunk docs", completed: true },
-  { id: "2", title: "Build something cool", completed: false },
-  { id: "3", title: "Ship it", completed: false },
-  { id: "4", title: "Tell the world", completed: false },
-])
-
 export const filterChunk = chunk<Filter>("all")
 
-// Derived
-export const totalCount = tasksChunk.derive((tasks) => tasks.length)
+export const tasksChunk = asyncChunk(fetchTasks)
 
-export const completedCount = tasksChunk.derive(
-  (tasks) => tasks.filter((t) => t.completed).length
-)
-
-export const filteredTasks = computed(() => {
-  const tasks = tasksChunk.get()
-  const filter = filterChunk.get()
-
+export const filteredTasks = filterChunk.derive((filter) => {
+  const tasks = tasksChunk.get().data ?? []
   if (filter === "active") return tasks.filter((t) => !t.completed)
   if (filter === "done") return tasks.filter((t) => t.completed)
   return tasks
 })
 
-// Actions
-export function addTask(title: string) {
-  const trimmed = title.trim()
-  if (!trimmed) return
+export const totalCount = tasksChunk.derive((state) => state.data?.length ?? 0)
 
-  tasksChunk.set((prev) => [
-    ...prev,
-    { id: crypto.randomUUID(), title: trimmed, completed: false },
-  ])
-}
+export const completedCount = tasksChunk.derive(
+  (state) => state.data?.filter((t) => t.completed).length ?? 0
+)
 
-export function toggleTask(id: string) {
-  tasksChunk.set((prev) =>
-    prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-  )
-}
+export const addTaskMutation = mutation(
+  async (title: string) => createTask(title),
+  { invalidates: [tasksChunk] }
+)
 
-export function deleteTask(id: string) {
-  tasksChunk.set((prev) => prev.filter((t) => t.id !== id))
-}
+export const deleteTaskMutation = mutation(
+  async (id: string) => removeTask(id),
+  { invalidates: [tasksChunk] }
+)
+
+export const toggleTaskMutation = mutation(
+  async (id: string) => toggleTask(id),
+  { invalidates: [tasksChunk] }
+)
 
 export function completeAll() {
   batch(() => {
-    tasksChunk.set((prev) => prev.map((t) => ({ ...t, completed: true })))
+    tasksChunk.mutate((current) =>
+      (current ?? []).map((t) => ({ ...t, completed: true }))
+    )
     filterChunk.set("all")
   })
 }
