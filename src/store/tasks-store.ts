@@ -14,8 +14,9 @@ export const filterChunk = chunk<Filter>("all")
 
 export const tasksChunk = asyncChunk(fetchTasks)
 
-export const filteredTasks = filterChunk.derive((filter) => {
-  const tasks = tasksChunk.get().data ?? []
+export const filteredTasks = tasksChunk.derive((state) => {
+  const tasks = state.data ?? []
+  const filter = filterChunk.get()
   if (filter === "active") return tasks.filter((t) => !t.completed)
   if (filter === "done") return tasks.filter((t) => t.completed)
   return tasks

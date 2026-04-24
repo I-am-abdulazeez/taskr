@@ -104,7 +104,7 @@ export default function App() {
               disabled={adding}
             />
             <Button variant="primary" onPress={handleAdd} isDisabled={adding}>
-              {adding ? <Spinner size="sm" color="current" /> : "Add Task"}
+              {adding ? <Spinner size="sm" color="current" /> : "Add"}
             </Button>
           </div>
         </Card>
