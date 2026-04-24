@@ -1,5 +1,6 @@
 import { chunk, batch } from "stunk"
 import { asyncChunk, mutation } from "stunk/query"
+import { history, persist } from "stunk/middleware"
 import { fetchTasks, createTask, removeTask, toggleTask } from "../api/tasks-api"
 
 export type Task = {
@@ -10,7 +11,9 @@ export type Task = {
 
 export type Filter = "all" | "active" | "done"
 
-export const filterChunk = chunk<Filter>("all")
+const _filterChunk = chunk<Filter>("all")
+const _persistedFilter = persist(_filterChunk, { key: "taskr-filter" })
+export const filterChunk = history(_persistedFilter)
 
 export const tasksChunk = asyncChunk(fetchTasks)
 

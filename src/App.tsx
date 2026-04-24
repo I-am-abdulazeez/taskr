@@ -95,18 +95,36 @@ export default function App() {
           </div>
         </Card>
 
-        {/* Filters */}
-        <div className="flex gap-2 mb-4">
-          {(["all", "active", "done"] as const).map((f) => (
+        {/* Filters + Undo/Redo */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-2">
+            {(["all", "active", "done"] as const).map((f) => (
+              <Button
+                key={f}
+                size="sm"
+                variant={filter === f ? "primary" : "ghost"}
+                onPress={() => setFilter(f)}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </Button>
+            ))}
+          </div>
+          <div className="flex gap-2">
             <Button
-              key={f}
               size="sm"
-              variant={filter === f ? "primary" : "ghost"}
-              onPress={() => setFilter(f)}
+              variant="ghost"
+              onPress={() => filterChunk.undo()}
             >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              Undo
             </Button>
-          ))}
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() => filterChunk.redo()}
+            >
+              Redo
+            </Button>
+          </div>
         </div>
 
         {/* Task List */}
