@@ -31,6 +31,7 @@ export default function App() {
     useMutation(toggleTaskMutation);
 
   const mutating = deleting || toggling;
+  const allCompleted = total > 0 && completed === total;
 
   const tasks = useMemo(() => {
     if (!data) return [];
@@ -45,6 +46,17 @@ export default function App() {
     setInput("");
     await addTask(title);
   }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") handleAdd();
+    if (e.key === "Escape") setInput("");
+  }
+
+  const emptyMessages: Record<string, string> = {
+    all: "No tasks yet. Add one above.",
+    active: "No active tasks. You're all caught up!",
+    done: "No completed tasks yet. Get to work!",
+  };
 
   if (error) {
     return (
@@ -86,10 +98,14 @@ export default function App() {
               aria-label="New task"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              onKeyDown={handleKeyDown}
               className="flex-1"
             />
-            <Button variant="primary" onPress={handleAdd} isDisabled={adding}>
+            <Button
+              variant="primary"
+              onPress={handleAdd}
+              isDisabled={adding || !input.trim()}
+            >
               {adding ? <Spinner size="sm" color="current" /> : "Add"}
             </Button>
           </div>
@@ -113,6 +129,7 @@ export default function App() {
             <Button
               size="sm"
               variant="ghost"
+              isDisabled={!filterChunk.canUndo?.()}
               onPress={() => filterChunk.undo()}
             >
               Undo
@@ -120,6 +137,7 @@ export default function App() {
             <Button
               size="sm"
               variant="ghost"
+              isDisabled={!filterChunk.canRedo?.()}
               onPress={() => filterChunk.redo()}
             >
               Redo
@@ -136,7 +154,9 @@ export default function App() {
               <Spinner />
             </div>
           ) : tasks.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">No tasks here.</p>
+            <p className="text-center text-gray-400 py-8">
+              {emptyMessages[filter]}
+            </p>
           ) : (
             tasks.map((task) => (
               <Card key={task.id} className="p-4">
@@ -170,8 +190,13 @@ export default function App() {
         </div>
 
         {/* Complete All */}
-        <Button variant="outline" className="w-full" onPress={completeAll}>
-          Complete All
+        <Button
+          variant="outline"
+          className="w-full"
+          isDisabled={allCompleted || total === 0}
+          onPress={completeAll}
+        >
+          {allCompleted ? "All done!" : "Complete All"}
         </Button>
       </div>
     </div>
