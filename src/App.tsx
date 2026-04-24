@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button, Card, Checkbox, Input, Chip, Spinner } from "@heroui/react";
 import {
   useChunk,
@@ -8,7 +8,6 @@ import {
 } from "stunk/react";
 import {
   filterChunk,
-  filteredTasks,
   totalCount,
   completedCount,
   tasksChunk,
@@ -20,43 +19,31 @@ import {
 
 export default function App() {
   const [input, setInput] = useState("");
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useChunk(filterChunk);
-  const { loading, error, reload } = useAsyncChunk(tasksChunk);
-  const tasks = useChunkValue(filteredTasks);
+  const { data, loading, error, reload } = useAsyncChunk(tasksChunk);
   const total = useChunkValue(totalCount);
   const completed = useChunkValue(completedCount);
 
   const { mutate: addTask, loading: adding } = useMutation(addTaskMutation);
-  const { mutate: deleteTask } = useMutation(deleteTaskMutation);
-  const { mutate: toggleTask } = useMutation(toggleTaskMutation);
+  const { mutate: deleteTask, loading: deleting } =
+    useMutation(deleteTaskMutation);
+  const { mutate: toggleTask, loading: toggling } =
+    useMutation(toggleTaskMutation);
+
+  const mutating = deleting || toggling;
+
+  const tasks = useMemo(() => {
+    if (!data) return [];
+    if (filter === "active") return data.filter((t) => !t.completed);
+    if (filter === "done") return data.filter((t) => t.completed);
+    return data;
+  }, [data, filter]);
 
   async function handleAdd() {
     const title = input.trim();
     if (!title) return;
     setInput("");
     await addTask(title);
-  }
-
-  async function handleDelete(id: string) {
-    setDeletingIds((prev) => new Set(prev).add(id));
-    try {
-      await deleteTask(id);
-    } finally {
-      setDeletingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-  }
-
-  if (loading && tasks.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
   }
 
   if (error) {
@@ -101,7 +88,6 @@ export default function App() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               className="flex-1"
-              disabled={adding}
             />
             <Button variant="primary" onPress={handleAdd} isDisabled={adding}>
               {adding ? <Spinner size="sm" color="current" /> : "Add"}
@@ -124,54 +110,44 @@ export default function App() {
         </div>
 
         {/* Task List */}
-        <div className="flex flex-col gap-3 mb-6">
-          {adding ? (
-            <div className="flex items-center justify-center py-8">
+        <div
+          className={`flex flex-col gap-3 mb-6 transition-opacity duration-200 ${mutating ? "opacity-50 pointer-events-none" : ""}`}
+        >
+          {loading ? (
+            <div className="flex justify-center py-8">
               <Spinner />
             </div>
+          ) : tasks.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">No tasks here.</p>
           ) : (
-            <>
-              {tasks.length === 0 && (
-                <p className="text-center text-gray-400 py-8">No tasks here.</p>
-              )}
-              {tasks.map((task) => {
-                const isDeleting = deletingIds.has(task.id);
-                return (
-                  <Card key={task.id} className="p-4 relative overflow-hidden">
-                    {isDeleting && (
-                      <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
-                        <Spinner size="sm" />
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          isSelected={task.completed}
-                          onChange={() => toggleTask(task.id)}
-                        />
-                        <span
-                          className={
-                            task.completed
-                              ? "line-through text-gray-400"
-                              : "text-gray-800"
-                          }
-                        >
-                          {task.title}
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="danger-soft"
-                        isDisabled={isDeleting}
-                        onPress={() => handleDelete(task.id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })}
-            </>
+            tasks.map((task) => (
+              <Card key={task.id} className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      isSelected={task.completed}
+                      onChange={() => toggleTask(task.id)}
+                    />
+                    <span
+                      className={
+                        task.completed
+                          ? "line-through text-gray-400"
+                          : "text-gray-800"
+                      }
+                    >
+                      {task.title}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="danger-soft"
+                    onPress={() => deleteTask(task.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </Card>
+            ))
           )}
         </div>
 
