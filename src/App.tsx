@@ -1,13 +1,31 @@
+import { useState } from "react";
 import { Button, Card, Checkbox, Input, Chip } from "@heroui/react";
-
-const TASKS = [
-  { id: "1", title: "Read Stunk docs", completed: true },
-  { id: "2", title: "Build something cool", completed: false },
-  { id: "3", title: "Ship it", completed: false },
-  { id: "4", title: "Tell the world", completed: false },
-];
+import { useChunk, useChunkValue } from "stunk/react";
+import {
+  filterChunk,
+  filteredTasks,
+  totalCount,
+  completedCount,
+  addTask,
+  toggleTask,
+  deleteTask,
+  completeAll,
+} from "./store/tasks-store";
 
 export default function App() {
+  const [input, setInput] = useState("");
+
+  const [filter, setFilter] = useChunk(filterChunk);
+
+  const tasks = useChunkValue(filteredTasks);
+  const total = useChunkValue(totalCount);
+  const completed = useChunkValue(completedCount);
+
+  function handleAdd() {
+    addTask(input);
+    setInput("");
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-12">
@@ -21,9 +39,9 @@ export default function App() {
 
         {/* Stats */}
         <div className="flex gap-3 mb-6">
-          <Chip variant="secondary">4 tasks</Chip>
+          <Chip variant="secondary">{total} tasks</Chip>
           <Chip variant="soft" color="success">
-            1 completed
+            {completed} completed
           </Chip>
         </div>
 
@@ -33,32 +51,44 @@ export default function App() {
             <Input
               placeholder="Add a new task..."
               aria-label="New task"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               className="flex-1"
             />
-            <Button variant="primary">Add</Button>
+            <Button variant="primary" onPress={handleAdd}>
+              Add
+            </Button>
           </div>
         </Card>
 
         {/* Filters */}
         <div className="flex gap-2 mb-4">
-          {["All", "Active", "Done"].map((f) => (
+          {(["all", "active", "done"] as const).map((f) => (
             <Button
               key={f}
               size="sm"
-              variant={f === "All" ? "primary" : "ghost"}
+              variant={filter === f ? "primary" : "ghost"}
+              onPress={() => setFilter(f)}
             >
-              {f}
+              {f.charAt(0).toUpperCase() + f.slice(1)}
             </Button>
           ))}
         </div>
 
         {/* Task List */}
         <div className="flex flex-col gap-3 mb-6">
-          {TASKS.map((task) => (
+          {tasks.length === 0 && (
+            <p className="text-center text-gray-400 py-8">No tasks here.</p>
+          )}
+          {tasks.map((task) => (
             <Card key={task.id} className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Checkbox isSelected={task.completed} />
+                  <Checkbox
+                    isSelected={task.completed}
+                    onChange={() => toggleTask(task.id)}
+                  />
                   <span
                     className={
                       task.completed
@@ -69,7 +99,11 @@ export default function App() {
                     {task.title}
                   </span>
                 </div>
-                <Button size="sm" variant="danger-soft">
+                <Button
+                  size="sm"
+                  variant="danger-soft"
+                  onPress={() => deleteTask(task.id)}
+                >
                   Delete
                 </Button>
               </div>
@@ -78,7 +112,7 @@ export default function App() {
         </div>
 
         {/* Complete All */}
-        <Button variant="outline" className="w-full">
+        <Button variant="outline" className="w-full" onPress={completeAll}>
           Complete All
         </Button>
       </div>
